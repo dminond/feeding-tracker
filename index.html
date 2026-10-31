@@ -111,23 +111,25 @@
     .next { margin-top: 18px; color: var(--muted); font-size: .95rem; min-height: 1.2em; }
     .next strong { color: var(--text); }
 
+    .status { position: relative; }
     .undo {
-      position: fixed;
-      left: 50%;
-      bottom: calc(80px + env(safe-area-inset-bottom));
-      transform: translate(-50%, 140%);
-      background: var(--text);
-      color: var(--bg);
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: var(--track);
+      color: var(--text);
       border: 0;
       font: inherit;
+      font-size: .9rem;
       font-weight: 600;
-      padding: 12px 22px;
+      padding: 6px 12px;
       border-radius: 999px;
-      box-shadow: var(--shadow);
-      transition: transform .3s;
       cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .3s;
     }
-    .undo.show { transform: translate(-50%, 0); }
+    .undo.show { opacity: 1; pointer-events: auto; }
   </style>
 </head>
 <body>
@@ -144,6 +146,7 @@
       <div class="label">Last feed</div>
       <div class="last" id="last">No feeds yet — tap a side</div>
       <div class="ago" id="ago"></div>
+      <button type="button" class="undo" id="undo">↩︎ Undo</button>
     </section>
 
     <div class="next" id="next"></div>
@@ -152,8 +155,6 @@
   <footer class="today" aria-live="polite">
     <strong id="todayCount">0</strong><span id="todayLabel">feeds today</span>
   </footer>
-
-  <button type="button" class="undo" id="undo">↩︎ Undo</button>
 
   <script>
     const KEY = 'feeding-tracker:history';
@@ -234,7 +235,7 @@
     function showUndo() {
       undoBtn.classList.add('show');
       clearTimeout(undoTimer);
-      undoTimer = setTimeout(() => undoBtn.classList.remove('show'), 6000);
+      undoTimer = setTimeout(() => undoBtn.classList.remove('show'), 5000);
     }
     undoBtn.addEventListener('click', () => {
       const history = load();
