@@ -46,13 +46,19 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
       padding: calc(24px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom));
       -webkit-user-select: none;
       user-select: none;
       touch-action: manipulation;
     }
-    main { width: 100%; max-width: 420px; text-align: center; }
+    main { width: 100%; max-width: 420px; text-align: center; flex: 1; display: flex; flex-direction: column; justify-content: center; }
+    .today {
+      width: 100%; max-width: 420px;
+      display: flex; align-items: baseline; justify-content: center; gap: 10px;
+      padding-top: 16px;
+      color: var(--muted); font-size: 1rem;
+    }
+    .today strong { font-size: 1.8rem; color: var(--text); }
     h1 { font-size: 1.1rem; font-weight: 600; color: var(--muted); margin: 0 0 28px; letter-spacing: .02em; }
 
     .toggle {
@@ -108,7 +114,7 @@
     .undo {
       position: fixed;
       left: 50%;
-      bottom: calc(24px + env(safe-area-inset-bottom));
+      bottom: calc(80px + env(safe-area-inset-bottom));
       transform: translate(-50%, 140%);
       background: var(--text);
       color: var(--bg);
@@ -143,6 +149,10 @@
     <div class="next" id="next"></div>
   </main>
 
+  <footer class="today" aria-live="polite">
+    <strong id="todayCount">0</strong><span id="todayLabel">feeds today</span>
+  </footer>
+
   <button type="button" class="undo" id="undo">↩︎ Undo</button>
 
   <script>
@@ -154,6 +164,8 @@
     const agoEl = document.getElementById('ago');
     const nextEl = document.getElementById('next');
     const undoBtn = document.getElementById('undo');
+    const todayCountEl = document.getElementById('todayCount');
+    const todayLabelEl = document.getElementById('todayLabel');
     let undoTimer;
 
     function load() {
@@ -186,6 +198,11 @@
 
     function render() {
       const history = load();
+      const midnight = new Date();
+      midnight.setHours(0, 0, 0, 0);
+      const today = history.filter(f => f.time >= midnight.getTime()).length;
+      todayCountEl.textContent = today;
+      todayLabelEl.textContent = today === 1 ? 'feed today' : 'feeds today';
       const last = history[history.length - 1];
       toggle.dataset.side = last ? last.side : '';
       toggle.querySelectorAll('button').forEach(b => {
