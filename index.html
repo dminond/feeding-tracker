@@ -53,12 +53,50 @@
     }
     main { width: 100%; max-width: 420px; text-align: center; flex: 1; display: flex; flex-direction: column; justify-content: center; }
     .today {
+      position: relative; z-index: 3;
       width: 100%; max-width: 420px;
       display: flex; align-items: baseline; justify-content: center; gap: 10px;
-      padding-top: 16px;
+      margin-top: 16px; padding: 4px 0;
+      background: none; border: 0; font: inherit; cursor: pointer;
       color: var(--muted); font-size: 1rem;
     }
     .today strong { font-size: 1.8rem; color: var(--text); }
+    .today .chev { display: inline-block; transition: transform .3s; }
+    body.sheet-open .today .chev { transform: rotate(180deg); }
+
+    .backdrop {
+      position: fixed; inset: 0; z-index: 1;
+      background: rgba(40, 20, 30, .25);
+      opacity: 0; pointer-events: none; transition: opacity .3s;
+    }
+    .sheet {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 2;
+      margin: 0 auto; max-width: 460px;
+      background: var(--card);
+      border-radius: 24px 24px 0 0;
+      box-shadow: 0 -10px 30px rgba(0, 0, 0, .15);
+      padding: 22px 20px calc(84px + env(safe-area-inset-bottom));
+      transform: translateY(calc(100% + 40px));
+      transition: transform .35s cubic-bezier(.3, .9, .3, 1);
+    }
+    body.sheet-open .sheet { transform: translateY(0); }
+    body.sheet-open .backdrop { opacity: 1; pointer-events: auto; }
+    .sheet h2 {
+      margin: 0 0 10px; text-align: center;
+      font-size: .85rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+    }
+    .sheet ol { list-style: none; margin: 0; padding: 0; max-height: 45vh; overflow-y: auto; }
+    .sheet li {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 6px; border-bottom: 1px solid var(--track); font-size: 1.1rem;
+    }
+    .sheet li:last-child { border-bottom: 0; }
+    .sheet .time { font-weight: 600; min-width: 5.5em; }
+    .sheet .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+    .sheet .dot.left { background: var(--left); }
+    .sheet .dot.right { background: var(--right); }
+    .sheet .gap { margin-left: auto; color: var(--muted); font-size: .9rem; }
+    .sheet .empty { text-align: center; color: var(--muted); padding: 12px 0; }
     h1 { font-size: 1.1rem; font-weight: 600; color: var(--muted); margin: 0 0 28px; letter-spacing: .02em; }
 
     .toggle {
@@ -190,8 +228,14 @@
     <div class="next" id="next"></div>
   </main>
 
-  <footer class="today" aria-live="polite">
-    <strong id="todayCount">0</strong><span id="todayLabel">feeds today</span>
+  <div class="backdrop" id="backdrop"></div>
+  <div class="sheet" id="sheet" aria-hidden="true">
+    <h2>Today's feeds</h2>
+    <ol id="todayList"></ol>
+  </div>
+
+  <footer class="today" id="todayBtn" role="button" tabindex="0" aria-expanded="false" aria-live="polite">
+    <strong id="todayCount">0</strong><span id="todayLabel">feeds today</span><span class="chev" aria-hidden="true">⌃</span>
   </footer>
 
   <script>
@@ -242,7 +286,9 @@
       const history = load();
       const midnight = new Date();
       midnight.setHours(0, 0, 0, 0);
-      const today = history.filter(f => f.time >= midnight.getTime()).length;
+      const todays = history.filter(f => f.time >= midnight.getTime());
+      const today = todays.length;
+      renderList(todays);
       todayCountEl.textContent = today;
       todayLabelEl.textContent = today === 1 ? 'feed today' : 'feeds today';
       const last = history[history.length - 1];
@@ -289,6 +335,44 @@
       undoBtn.classList.remove('show');
       render();
     });
+
+    // ---- Today's feeds list (slides up from the bottom) ----
+    const todayBtn = document.getElementById('todayBtn');
+    const todayList = document.getElementById('todayList');
+    const sheet = document.getElementById('sheet');
+
+    function clockTime(ts) {
+      return formatTime(ts).split(' ')[1];
+    }
+    function renderList(todays) {
+      todayList.innerHTML = '';
+      if (!todays.length) {
+        todayList.innerHTML = '<li class="empty">No feeds yet today</li>';
+        return;
+      }
+      [...todays].reverse().forEach((f, i, arr) => {
+        const li = document.createElement('li');
+        const prev = arr[i + 1];
+        let gap = '';
+        if (prev) {
+          const mins = Math.round((f.time - prev.time) / 60000);
+          const h = Math.floor(mins / 60), m = mins % 60;
+          gap = `+${h ? h + 'h ' : ''}${m}m`;
+        }
+        li.innerHTML = `<span class="time">${clockTime(f.time)}</span>` +
+          `<span class="dot ${f.side}"></span><span>${f.side === 'left' ? 'Left' : 'Right'}</span>` +
+          `<span class="gap">${gap}</span>`;
+        todayList.appendChild(li);
+      });
+    }
+    function setSheet(open) {
+      document.body.classList.toggle('sheet-open', open);
+      todayBtn.setAttribute('aria-expanded', String(open));
+      sheet.setAttribute('aria-hidden', String(!open));
+    }
+    todayBtn.addEventListener('click', () => setSheet(!document.body.classList.contains('sheet-open')));
+    todayBtn.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); todayBtn.click(); } });
+    document.getElementById('backdrop').addEventListener('click', () => setSheet(false));
 
     // ---- Adjust the time of the last feed ----
     function toLocalInput(ts) {
