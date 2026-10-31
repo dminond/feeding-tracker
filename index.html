@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Feeding Tracker</title>
+  <meta name="description" content="Which side did baby last feed from?">
+  <meta name="theme-color" content="#fff4ef" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1d1720" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Feeding">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <style>
+    :root {
+      --bg: #fff4ef;
+      --card: #ffffff;
+      --text: #4a3a42;
+      --muted: #9a8790;
+      --track: #f6e4e0;
+      --left: #f4a7b9;
+      --right: #a7c7f4;
+      --shadow: 0 10px 30px rgba(180, 120, 130, .18);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1d1720;
+        --card: #2a2230;
+        --text: #f3e9ee;
+        --muted: #a593a0;
+        --track: #3a2f40;
+        --left: #c9718a;
+        --right: #6f93c9;
+        --shadow: 0 10px 30px rgba(0, 0, 0, .35);
+      }
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: calc(24px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom));
+      -webkit-user-select: none;
+      user-select: none;
+      touch-action: manipulation;
+    }
+    main { width: 100%; max-width: 420px; text-align: center; }
+    h1 { font-size: 1.1rem; font-weight: 600; color: var(--muted); margin: 0 0 28px; letter-spacing: .02em; }
+
+    .toggle {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      background: var(--track);
+      border-radius: 999px;
+      padding: 8px;
+      box-shadow: var(--shadow);
+    }
+    .pill {
+      position: absolute;
+      top: 8px; bottom: 8px; left: 8px;
+      width: calc(50% - 8px);
+      border-radius: 999px;
+      background: var(--left);
+      transition: transform .35s cubic-bezier(.5, 1.6, .4, 1), background-color .3s, opacity .3s;
+      opacity: 0;
+    }
+    .toggle[data-side="left"] .pill { opacity: 1; transform: translateX(0); background: var(--left); }
+    .toggle[data-side="right"] .pill { opacity: 1; transform: translateX(100%); background: var(--right); }
+    .toggle button {
+      position: relative;
+      z-index: 1;
+      border: 0;
+      background: none;
+      font: inherit;
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--muted);
+      padding: 34px 0;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: color .3s, transform .1s;
+    }
+    .toggle button:active { transform: scale(.96); }
+    .toggle button[aria-pressed="true"] { color: #fff; }
+
+    .status {
+      margin-top: 32px;
+      background: var(--card);
+      border-radius: 24px;
+      padding: 22px 20px;
+      box-shadow: var(--shadow);
+    }
+    .status .label { font-size: .85rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+    .status .last { font-size: 1.35rem; font-weight: 600; margin-top: 6px; }
+    .status .ago { color: var(--muted); margin-top: 6px; font-size: 1rem; }
+    .next { margin-top: 18px; color: var(--muted); font-size: .95rem; min-height: 1.2em; }
+    .next strong { color: var(--text); }
+
+    .undo {
+      position: fixed;
+      left: 50%;
+      bottom: calc(24px + env(safe-area-inset-bottom));
+      transform: translate(-50%, 140%);
+      background: var(--text);
+      color: var(--bg);
+      border: 0;
+      font: inherit;
+      font-weight: 600;
+      padding: 12px 22px;
+      border-radius: 999px;
+      box-shadow: var(--shadow);
+      transition: transform .3s;
+      cursor: pointer;
+    }
+    .undo.show { transform: translate(-50%, 0); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>🍼 Feeding Tracker</h1>
+
+    <div class="toggle" id="toggle" role="group" aria-label="Feeding side">
+      <div class="pill" aria-hidden="true"></div>
+      <button type="button" data-side="left" aria-pressed="false">Left</button>
+      <button type="button" data-side="right" aria-pressed="false">Right</button>
+    </div>
+
+    <section class="status" aria-live="polite">
+      <div class="label">Last feed</div>
+      <div class="last" id="last">No feeds yet — tap a side</div>
+      <div class="ago" id="ago"></div>
+    </section>
+
+    <div class="next" id="next"></div>
+  </main>
+
+  <button type="button" class="undo" id="undo">↩︎ Undo</button>
+
+  <script>
+    const KEY = 'feeding-tracker:history';
+    const MAX_HISTORY = 100;
+
+    const toggle = document.getElementById('toggle');
+    const lastEl = document.getElementById('last');
+    const agoEl = document.getElementById('ago');
+    const nextEl = document.getElementById('next');
+    const undoBtn = document.getElementById('undo');
+    let undoTimer;
+
+    function load() {
+      try { return JSON.parse(localStorage.getItem(KEY)) || []; }
+      catch { return []; }
+    }
+    function save(history) {
+      try { localStorage.setItem(KEY, JSON.stringify(history.slice(-MAX_HISTORY))); }
+      catch {}
+    }
+
+    function formatTime(ts) {
+      const d = new Date(ts);
+      let h = d.getHours();
+      const m = String(d.getMinutes()).padStart(2, '0');
+      const ampm = h >= 12 ? 'pm' : 'am';
+      h = h % 12 || 12;
+      return `${d.getMonth() + 1}/${d.getDate()} ${h}:${m}${ampm}`;
+    }
+    function formatAgo(ts) {
+      const mins = Math.floor((Date.now() - ts) / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return `${mins}m ago`;
+      const h = Math.floor(mins / 60);
+      const rem = mins % 60;
+      if (h < 24) return rem ? `${h}h ${rem}m ago` : `${h}h ago`;
+      const days = Math.floor(h / 24);
+      return `${days}d ${h % 24}h ago`;
+    }
+
+    function render() {
+      const history = load();
+      const last = history[history.length - 1];
+      toggle.dataset.side = last ? last.side : '';
+      toggle.querySelectorAll('button').forEach(b => {
+        b.setAttribute('aria-pressed', String(!!last && b.dataset.side === last.side));
+      });
+      if (last) {
+        lastEl.textContent = `${formatTime(last.time)}, ${last.side} boob`;
+        agoEl.textContent = formatAgo(last.time);
+        const other = last.side === 'left' ? 'right' : 'left';
+        nextEl.innerHTML = `Next time: <strong>${other}</strong>`;
+      } else {
+        lastEl.textContent = 'No feeds yet — tap a side';
+        agoEl.textContent = '';
+        nextEl.textContent = '';
+      }
+    }
+
+    toggle.addEventListener('click', e => {
+      const btn = e.target.closest('button[data-side]');
+      if (!btn) return;
+      const history = load();
+      history.push({ side: btn.dataset.side, time: Date.now() });
+      save(history);
+      if (navigator.vibrate) navigator.vibrate(15);
+      render();
+      showUndo();
+    });
+
+    function showUndo() {
+      undoBtn.classList.add('show');
+      clearTimeout(undoTimer);
+      undoTimer = setTimeout(() => undoBtn.classList.remove('show'), 6000);
+    }
+    undoBtn.addEventListener('click', () => {
+      const history = load();
+      history.pop();
+      save(history);
+      undoBtn.classList.remove('show');
+      render();
+    });
+
+    render();
+    setInterval(render, 30000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>

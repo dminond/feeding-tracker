@@ -1,0 +1,15 @@
+{
+  "name": "Feeding Tracker",
+  "short_name": "Feeding",
+  "description": "Which side did baby last feed from?",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fff4ef",
+  "theme_color": "#fff4ef",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
