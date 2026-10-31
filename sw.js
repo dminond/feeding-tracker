@@ -1,5 +1,5 @@
-// Bump this when you change any file so phones pick up the new version.
-const CACHE = 'feeding-tracker-v5';
+// Bump this together with APP_VERSION in index.html and version.json.
+const CACHE = 'feeding-tracker-v6';
 const ASSETS = [
   './',
   'index.html',
@@ -25,8 +25,11 @@ self.addEventListener('activate', e => {
 // Network first (so updates show up), fall back to cache when offline.
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  if (new URL(e.request.url).origin !== self.location.origin) return;
+  if (e.request.url.includes('version.json')) return; // always straight to network
   e.respondWith(
-    fetch(e.request)
+    // 'no-cache' revalidates with the server so a new deploy is seen immediately.
+    fetch(e.request.url, { cache: 'no-cache' })
       .then(res => {
         const copy = res.clone();
         caches.open(CACHE).then(c => c.put(e.request, copy));

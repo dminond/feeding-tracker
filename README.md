@@ -19,4 +19,10 @@ separate from the Safari tab).
 
 ## Updating
 
-After changing files, bump `CACHE` in `sw.js` so installed copies refresh.
+After changing files, bump the version number in all three places so installed copies
+reload themselves the next time they're opened (no need to delete/re-add the home screen app —
+doing that on iPhone erases its saved data):
+
+- `version.json` → `"version"`
+- `index.html` → `APP_VERSION`
+- `sw.js` → `CACHE`
